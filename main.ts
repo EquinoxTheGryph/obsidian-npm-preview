@@ -6,13 +6,21 @@ import type { ComponentProps, SvelteComponent } from "svelte";
 
 export default class NpmPreviewPlugin extends Plugin {
 	async onload() {
-		console.log("load");
 		this.registerMarkdownPostProcessor((element, context) => {
-			console.log("register");
-			element.querySelectorAll("code").forEach((element) => {
-				console.log(element);
+			const regexPattern = /\{!npm (\S+)\}/gm;
+
+			element.innerHTML = element.innerHTML.replace(
+				regexPattern,
+				(_, packageName) =>
+					`<div class="npm-package" data-package="${packageName}"></div>`
+			);
+
+			element.querySelectorAll(`.npm-package`).forEach((_element) => {
 				context.addChild(
-					new NpmElement(element, element.innerText.trim())
+					new NpmElement(
+						_element as HTMLElement,
+						_element.getAttribute("data-package") ?? ""
+					)
 				);
 			});
 		});
@@ -83,6 +91,10 @@ export class NpmElement extends MarkdownRenderChild {
 
 		// Show main component
 		this.renderComponent(ComponentMain, { data });
+	}
+
+	onunload(): void {
+		this.currentComponent.$destroy();
 	}
 
 	validateInput(input: string) {
