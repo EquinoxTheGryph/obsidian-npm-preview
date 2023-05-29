@@ -1,6 +1,8 @@
 import { MarkdownRenderChild, Plugin } from "obsidian";
-
-// Remember to rename these classes and interfaces!
+import ComponentMain from "./Components/Main.svelte";
+import ComponentError from "./Components/Error.svelte";
+import ComponentLoading from "./Components/Loading.svelte";
+import type { ComponentProps, SvelteComponent } from "svelte";
 
 export default class NpmPreviewPlugin extends Plugin {
 	async onload() {
@@ -19,7 +21,7 @@ export default class NpmPreviewPlugin extends Plugin {
 	onunload() {}
 }
 
-interface NpmPackage {
+export interface NpmPackage {
 	name: string;
 	version: string;
 	description: string;
@@ -37,6 +39,8 @@ interface NpmPackage {
 
 export class NpmElement extends MarkdownRenderChild {
 	packageName: string;
+	currentComponent: SvelteComponent;
+	componentTarget: HTMLElement;
 
 	constructor(containerEl: HTMLElement, packageName: string) {
 		super(containerEl);
@@ -45,39 +49,47 @@ export class NpmElement extends MarkdownRenderChild {
 	}
 
 	async onload() {
+		this.componentTarget = this.containerEl.createDiv();
+		this.containerEl.replaceWith(this.componentTarget);
+
 		// Validate Input
 		const validation = this.validateInput(this.packageName);
 		if (validation) {
-			const span = this.containerEl.createSpan({
-				text: validation,
+			// Validation Error
+			this.renderComponent(ComponentError, {
+				packageName: this.packageName,
+				error: validation,
 			});
-			this.containerEl.replaceWith(span);
 			return;
 		}
 
 		// Create element
-		const span = this.containerEl.createSpan({
-			text: `Loading package info for "${this.packageName}"...`,
+		this.renderComponent(ComponentLoading, {
+			packageName: this.packageName,
 		});
-		this.containerEl.replaceWith(span);
 
 		let data: NpmPackage;
 
 		try {
 			data = await this.getPackageInfo(this.packageName);
 		} catch (error) {
-			span.setText(`Error getting package: ${error?.message ?? error}`);
+			// Fetch Error
+			this.renderComponent(ComponentError, {
+				packageName: this.packageName,
+				error: error?.message ?? error,
+			});
 			return;
 		}
 
-		span.setText(data.description);
+		// Show main component
+		this.renderComponent(ComponentMain, { data });
 	}
 
 	validateInput(input: string) {
-		if (input.length <= 0) return "Error Validating Input: Input too short";
-		if (input.length > 218) return "Error Validating Input: Input too long";
+		if (input.length <= 0) return "Input too short";
+		if (input.length > 218) return "Input too long";
 		if (!/^[a-zA-Z0-9-][a-zA-Z0-9_-]*$/.test(input))
-			return "Error Validating Input: Invalid characters included";
+			return "Invalid characters included";
 		return null;
 	}
 
@@ -101,5 +113,16 @@ export class NpmElement extends MarkdownRenderChild {
 		}
 
 		return await data.json();
+	}
+
+	renderComponent<T extends typeof SvelteComponent>(
+		component: T,
+		props?: ComponentProps<InstanceType<T>>
+	) {
+		this.currentComponent?.$destroy?.();
+		this.currentComponent = new component({
+			target: this.componentTarget,
+			props,
+		});
 	}
 }
