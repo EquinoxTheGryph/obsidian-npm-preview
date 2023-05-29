@@ -3,6 +3,15 @@
 	import { toHeaderCase } from "js-convert-case";
 
 	export let data: NpmPackage;
+
+	function getAuthors() {
+		if (data.author?.name) {
+			return data.author.name + (data.maintainers?.length ?? 0 > 1)
+				? " Et al."
+				: "";
+		} else {
+		}
+	}
 </script>
 
 <article class="view">
@@ -17,7 +26,12 @@
 	</div>
 	<p class="text description">{data.description}</p>
 	<p class="text info">
-		By {data.author.name} | Version: {data.version} |
+		{#if data.author?.name}
+			By {data.author.name}{data.maintainers?.length ?? 0 > 1
+				? " Et al."
+				: ""} |
+		{/if}
+		Version: {data.version} |
 		<a
 			href="https://www.npmjs.com/package/{data.name}?activeTab=dependencies"
 			>Dependencies: {Object.keys(data.dependencies ?? {}).length} (Dev: {Object.keys(
@@ -57,6 +71,7 @@
 
 	code {
 		user-select: all;
+		margin-left: 0.25em;
 	}
 
 	a {

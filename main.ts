@@ -7,15 +7,19 @@ import type { ComponentProps, SvelteComponent } from "svelte";
 export default class NpmPreviewPlugin extends Plugin {
 	async onload() {
 		this.registerMarkdownPostProcessor((element, context) => {
-			const regexPattern = /\{!npm (\S+)\}/gm;
+			const regexPattern = /\{!npm (?<packageName>\S+)\}/gm;
 
 			element.innerHTML = element.innerHTML.replace(
 				regexPattern,
-				(_, packageName) =>
-					`<div class="npm-package" data-package="${packageName}"></div>`
+				(_, ...args) =>
+					`<div class="npm-package" data-package="${
+						args.last()?.packageName
+					}"></div>`
 			);
 
+			
 			element.querySelectorAll(`.npm-package`).forEach((_element) => {
+				console.log(_element)
 				context.addChild(
 					new NpmElement(
 						_element as HTMLElement,
@@ -34,10 +38,14 @@ export interface NpmPackage {
 	version: string;
 	description: string;
 	homepage?: string;
-	author: {
-		name: string;
+	author?: {
+		name?: string;
 		email?: string;
 	};
+	maintainers?: {
+		name?: string;
+		email?: string;
+	}[];
 	deprecated?: string;
 	dependencies?: string[];
 	devDependencies?: string[];
@@ -57,9 +65,6 @@ export class NpmElement extends MarkdownRenderChild {
 	}
 
 	async onload() {
-		this.componentTarget = this.containerEl.createDiv();
-		this.containerEl.replaceWith(this.componentTarget);
-
 		// Validate Input
 		const validation = this.validateInput(this.packageName);
 		if (validation) {
@@ -94,13 +99,13 @@ export class NpmElement extends MarkdownRenderChild {
 	}
 
 	onunload(): void {
-		this.currentComponent.$destroy();
+		this.currentComponent?.$destroy?.();
 	}
 
 	validateInput(input: string) {
 		if (input.length <= 0) return "Input too short";
 		if (input.length > 218) return "Input too long";
-		if (!/^[a-zA-Z0-9-][a-zA-Z0-9_-]*$/.test(input))
+		if (!/^[a-zA-Z0-9-@][a-zA-Z0-9_\-/]*$/.test(input))
 			return "Invalid characters included";
 		return null;
 	}
@@ -133,7 +138,7 @@ export class NpmElement extends MarkdownRenderChild {
 	) {
 		this.currentComponent?.$destroy?.();
 		this.currentComponent = new component({
-			target: this.componentTarget,
+			target: this.containerEl,
 			props,
 		});
 	}
