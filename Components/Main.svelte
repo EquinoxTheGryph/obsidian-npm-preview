@@ -3,15 +3,6 @@
 	import { toHeaderCase } from "js-convert-case";
 
 	export let data: NpmPackage;
-
-	function getAuthors() {
-		if (data.author?.name) {
-			return data.author.name + (data.maintainers?.length ?? 0 > 1)
-				? " Et al."
-				: "";
-		} else {
-		}
-	}
 </script>
 
 <article class="view">
@@ -38,6 +29,9 @@
 				data.devDependencies ?? {}
 			).length})</a
 		>
+		{#if data.homepage}
+			| <a href={data.homepage} title={data.homepage}>Homepage</a>
+		{/if}
 	</p>
 </article>
 
